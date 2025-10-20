@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>La Vasija Pura — Hollow Knight (Fanpage avanzada)</title>
+  <meta name="description" content="Fanpage con efectos, niebla, iluminación reactiva y crossfade entre dos pistas (inserta tus mp3)." />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ---------- Reset / Base ---------- */
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:"Cinzel",serif;
+      background: #040406;
+      color:#e6e6e6;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    /* ---------- Background layers ---------- */
+    .bg-gradient {
+      position:fixed; inset:0; z-index:-5;
+      background: radial-gradient(1200px 600px at 15% 20%, rgba(90,80,120,0.12), transparent 12%),
+                  radial-gradient(900px 500px at 80% 70%, rgba(30,20,40,0.08), transparent 20%),
+                  linear-gradient(180deg, #05050a 0%, #000 100%);
+      transition: filter 0.6s;
+    }
+    canvas#particles, canvas#fog, svg#grain {
+      position:fixed; inset:0; width:100%; height:100%; z-index:-4; pointer-events:none;
+    }
+
+    /* ---------- Header / Nav ---------- */
+    header{
+      position:relative; z-index:40;
+      padding:2rem 1rem;
+      text-align:center;
+      background: linear-gradient(180deg, rgba(10,10,12,0.45), rgba(8,8,10,0.08));
+      backdrop-filter: blur(6px);
+      border-bottom:1px solid rgba(255,255,255,0.03);
+    }
+    header h1{
+      font-size:2.6rem; color:#fff; letter-spacing:2px;
+      text-shadow:0 0 8px rgba(120,110,200,0.05);
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse{ from{transform:scale(1)} to{transform:scale(1.007)} }
+
+    nav{
+      position:sticky; top:0; z-index:45;
+      display:flex; gap:1rem; justify-content:center;
+      padding:.6rem 1rem;
+      background: rgba(6,6,8,0.55);
+      backdrop-filter: blur(6px);
+      border-bottom:1px solid rgba(255,255,255,0.02);
+    }
+    nav a{ color:#bdbdbd; text-decoration:none; padding:.4rem .6rem; border-radius:8px; transition:.22s }
+    nav a:hover{ color:#fff; transform:translateY(-3px); text-shadow:0 0 10px rgba(255,255,255,0.06) }
+
+    /* ---------- Main / Sections ---------- */
+    main{ position:relative; z-index:10; padding:2rem 1rem 6rem; }
+    section{
+      max-width:1100px; margin:2.4rem auto; padding:2.2rem;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(8,8,10,0.06));
+      border:1px solid rgba(255,255,255,0.03); border-radius:14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      transform: translateY(25px) scale(0.997); opacity:0;
+      transition: all .9s cubic-bezier(.2,.9,.2,1);
+    }
+    section.revealed{ transform:none; opacity:1 }
+
+    h2{ font-size:1.6rem; color:#fff; padding-left:12px; border-left:4px solid rgba(160,160,180,0.12); margin-bottom:1rem }
+    .hero{ display:block; margin:1rem auto; max-width:100%; border-radius:10px; border:2px solid rgba(255,255,255,0.04); transition: transform .45s, box-shadow .45s; }
+    .hero:hover{ transform:scale(1.03); box-shadow: 0 18px 50px rgba(0,0,0,0.6) }
+    p{ color:#d5d5d5; text-align:justify; margin-bottom:.9rem; line-height:1.65 }
+
+    /* Quotes */
+    .frases{ font-style:italic; background: rgba(255,255,255,0.02); padding:1rem; border-left:4px solid rgba(200,150,150,0.08); border-radius:8px }
+
+    /* Hollow styles */
+    .hollow-section{
+      background: linear-gradient(180deg, rgba(30,12,12,0.45), rgba(6,6,8,0.7));
+      border-color: rgba(160,80,80,0.06);
+    }
+    .hollow-glow{ box-shadow: 0 30px 120px rgba(90,40,80,0.45); transition: box-shadow .6s; }
+
+    /* ---------- Cursor light ---------- */
+    #cursorLight{
+      position:fixed; z-index:60; left:0; top:0; pointer-events:none;
+      width:300px; height:300px; border-radius:50%;
+      background: radial-gradient(circle at 35% 35%, rgba(180,160,255,0.12), rgba(0,0,0,0));
+      mix-blend-mode: screen; transform: translate(-50%,-50%);
+      opacity:0; transition: opacity .18s, width .25s, height .25s;
+      display:none;
+    }
+
+    /* ---------- Audio controls / info / top button ---------- */
+    .audio-controls{
+      position:fixed; left:18px; bottom:18px; z-index:80;
+      background: rgba(0,0,0,0.55); padding:.55rem; border-radius:10px;
+      border:1px solid rgba(255,255,255,0.04); display:flex; gap:.5rem; align-items:center;
+      color:#ddd; backdrop-filter: blur(4px);
+    }
+    .audio-controls button{ background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.06); padding:.45rem .6rem; border-radius:8px; cursor:pointer; font-weight:600 }
+    .audio-controls input[type=range]{ width:110px }
+
+    #btnTop{ position:fixed; right:18px; bottom:18px; z-index:80; width:48px; height:48px; border-radius:50%; background: rgba(255,255,255,0.06); color:#fff; display:none; align-items:center; justify-content:center; cursor:pointer; border:1px solid rgba(255,255,255,0.04) }
+
+    /* Small screens */
+    @media (max-width:720px){
+      header h1{ font-size:1.8rem }
+      #cursorLight{ display:none }
+      nav{ gap:.5rem; padding:.4rem }
+    }
+  </style>
+</head>
+<body>
+  <!-- BACKGROUND -->
+  <div class="bg-gradient"></div>
+  <canvas id="particles"></canvas>
+  <canvas id="fog"></canvas>
+  <svg id="grain" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence baseFrequency="0.9" numOctaves="1" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%" height="100%" filter="url(#noise)" opacity="0.02"/></svg>
+
+  <!-- CURSOR LIGHT -->
+  <div id="cursorLight" aria-hidden="true"></div>
+
+  <!-- HEADER / NAV -->
+  <header><h1 id="siteTitle">La Vasija Pura — Hollow Knight</h1></header>
+
+  <nav>
+    <a href="#inicio">Inicio</a>
+    <a href="#palacio">Palacio Blanco</a>
+    <a href="#parkour">Parkour</a>
+    <a href="#sendero">Sendero</a>
+    <a href="#curiosidades">Curiosidades</a>
+    <a href="#hollow">El Hollow Knight</a>
+    <a href="#reflexion">Reflexión</a>
+  </nav>
+
+  <main>
+    <section id="inicio">
+      <h2>Inicio</h2>
+      <img class="hero" src="images/vasija_pura.JPG" alt="La Vasija Pura">
+      <p>La Vasija Pura fue creada con un solo propósito: contener la infección que amenazaba Hallownest. Sin mente, sin voluntad, sin voz… o al menos eso creían los antiguos.</p>
+      <p>Nacida del Vacío y moldeada por el Rey Pálido, su diseño pretendía eliminar la posibilidad de contagio mediante la negación de voluntad. Aun así, algo pequeño persistió.</p>
+    </section>
+
+    <section id="palacio">
+      <h2>El Palacio Blanco</h2>
+      <img class="hero" src="images/palacio_BLANCO.PNG" alt="El Palacio Blanco">
+      <p>El Palacio Blanco encarna la obsesión por la perfección. Sus salones brillan, pero guardan pruebas y sacrificios que forjaron la Vasija.</p>
+      <p>Los símbolos en las paredes cuentan historias de intentos, errores y esperanzas truncadas.</p>
+    </section>
+
+    <section id="parkour">
+      <h2>El Parkour del Palacio</h2>
+      <img class="hero" src="images/parkour_palacio.JPG" alt="Parkour">
+      <p>Saltos imposibles, sierras giratorias y trampas calculadas: el Parkour prueba el cuerpo y la paciencia, y devuelve comprensión sobre el sacrificio.</p>
+      <p>Aquí, cada caída enseña y cada subida moldea carácter.</p>
+    </section>
+
+    <section id="sendero">
+      <h2>El Sendero del Dolor</h2>
+      <img class="hero" src="images/sendero_dolor.JPEG" alt="Sendero del Dolor">
+      <p>Un camino de renuncia: la Vasija eligió soportar su propia destrucción para proteger lo que quedaba del reino. Ese es su testamento.</p>
+      <p>El Sendero es memoria y penitencia, y revela la profundidad del sacrificio que sostenía Hallownest.</p>
+    </section>
+
+    <section id="curiosidades" class="curiosidades">
+      <h2>Curiosidades</h2>
+      <ul>
+        <li>El Palacio solo es accesible tras obtener el Despertar del Aguijón de los Sueños.</li>
+        <li>Arquitectura que mezcla lo clásico con motivos del Vacío.</li>
+        <li>El Parkour es de los desafíos más recordados del juego.</li>
+      </ul>
+    </section>
+
+    <section id="hollow" class="hollow-section">
+      <h2>El Hollow Knight</h2>
+      <img class="hero" src="images/hollow_knight_play.JPG" alt="El Hollow Knight">
+      <p>El Hollow Knight es la tragedia materializada: creado para contener, terminó consumido por su propio propósito. Su sacrificio es la lección final de Hallownest.</p>
+      <p>Cuando llegues aquí la atmósfera cambiará: menos partículas, luz más fría y la música trágica toma el relevo.</p>
+    </section>
+
+    <section id="reflexion">
+      <h2>Reflexión Final</h2>
+      <div class="frases">“Una Vasija vacía… pero llena de propósito.”</div>
+      <p>La historia de la Vasija nos recuerda que la esperanza puede ser fruto del sacrificio, y que en la negación puede surgir una luz inesperada.</p>
+    </section>
+  </main>
+
+  <footer style="text-align:center;padding:1rem;color:#9d9d9d;background:rgba(0,0,0,0.6);border-top:1px solid rgba(255,255,255,0.02);">
+    © 2025 | Fanpage dedicada a Hollow Knight – Creada por junior vera figueroa 
+    <div id="musicCredit" style="font-size:.85rem;color:#8f8f8f;margin-top:.4rem"></div>
+  </footer>
+
+  <!-- Cursor light -->
+  <div id="cursorLight" aria-hidden="true"></div>
+
+  <!-- Audio controls -->
+  <div class="audio-controls" role="region" aria-label="Controles de audio">
+    <button id="playBtn" title="Reproducir/pausar">▶︎</button>
+    <button id="muteBtn" title="Silenciar/activar">🔉</button>
+    <span id="trackName" style="font-size:.95rem;color:#dcdcdc;margin-left:.4rem">Sin reproducción</span>
+    <input id="vol" type="range" min="0" max="1" step="0.01" value="0.28" />
+  </div>
+
+  <div id="btnTop" title="Volver arriba">↑</div>
+
+<audio id="bgAudio1" loop preload="auto">
+    <source id="src1" src="music/vasija_pura_music.mp3" type="audio/mpeg">
+  </audio>="
+
+  <audio id="bgAudio2" loop preload="auto">
+    <source id="src2" src="music/vasija_pura_music" type="audio/mpeg">
+  </audio>
+
+  <script>
+    /* ================= Particles + Fog ================= */
+    const pCanvas = document.getElementById('particles'), pCtx = pCanvas.getContext('2d');
+    const fCanvas = document.getElementById('fog'), fCtx = fCanvas.getContext('2d');
+    function resizeAll(){ [pCanvas,fCanvas].forEach(c=>{c.width = innerWidth; c.height = innerHeight}); }
+    window.addEventListener('resize', resizeAll); resizeAll();
+
+    let particles = [];
+    function createParticles(count = Math.round((innerWidth*innerHeight)/14000)){
+      particles = [];
+      for(let i=0;i<count;i++){
+        particles.push({
+          x: Math.random()*pCanvas.width,
+          y: Math.random()*pCanvas.height,
+          r: Math.random()*1.8 + 0.3,
+          vx: (Math.random()-0.5)*0.28,
+          vy: (Math.random()-0.5)*0.28,
+          alpha: 0.04 + Math.random()*0.18
+        });
+      }
+    }
+    createParticles();
+
+    function drawParticles(){
+      pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+      for(const t of particles){
+        pCtx.beginPath();
+        pCtx.fillStyle = `rgba(200,200,255,${t.alpha})`;
+        pCtx.arc(t.x,t.y,t.r,0,Math.PI*2); pCtx.fill();
+        t.x += t.vx; t.y += t.vy;
+        if(t.x < -30) t.x = pCanvas.width + 30;
+        if(t.x > pCanvas.width + 30) t.x = -30;
+        if(t.y < -30) t.y = pCanvas.height + 30;
+        if(t.y > pCanvas.height + 30) t.y = -30;
+      }
+    }
+
+    function drawFog(time){
+      fCtx.clearRect(0,0,fCanvas.width,fCanvas.height);
+      const grd = fCtx.createLinearGradient(0,0,fCanvas.width,fCanvas.height);
+      grd.addColorStop(0, `rgba(6,6,8,${0.06 + 0.02*Math.sin(time/4000)})`);
+      grd.addColorStop(1, 'rgba(0,0,0,0.28)');
+      fCtx.fillStyle = grd; fCtx.fillRect(0,0,fCanvas.width,fCanvas.height);
+
+      fCtx.globalCompositeOperation = 'lighter';
+      fCtx.beginPath();
+      const rad = Math.max(fCanvas.width, fCanvas.height)*0.8;
+      fCtx.fillStyle = 'rgba(120,60,160,0.03)';
+      fCtx.ellipse(fCanvas.width*0.28 + Math.sin(time/3500)*120, fCanvas.height*0.18, rad, rad*0.6, 0, 0, Math.PI*2);
+      fCtx.fill();
+      fCtx.globalCompositeOperation = 'source-over';
+    }
+
+    function anim(t){
+      drawParticles();
+      drawFog(t);
+      requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+
+    /* ================= Scroll reveal & section lighting ================= */
+    const sections = document.querySelectorAll('main section');
+    const observer = new IntersectionObserver((entries)=> {
+      entries.forEach(ent => {
+        if(ent.isIntersecting){
+          ent.target.classList.add('revealed');
+          // if it's hollow section, add a stronger glow to it
+          if(ent.target.id === 'hollow'){
+            ent.target.classList.add('hollow-glow');
+            // reduce particles slightly for atmosphere
+            particles.forEach(p => p.alpha *= 0.6);
+            setTimeout(()=>{ particles.forEach(p => p.alpha = Math.min(0.25, p.alpha*1.1)); }, 6000);
+          } else {
+            ent.target.classList.remove('hollow-glow');
+          }
+        }
+      });
+    }, { threshold: 0.14 });
+    sections.forEach(s=>observer.observe(s));
+
+    /* ================= Cursor reactive light ================= */
+    const cursorLight = document.getElementById('cursorLight');
+    function enableCursorLight(){
+      if(window.innerWidth <= 720) return;
+      cursorLight.style.display = 'block';
+      window.addEventListener('mousemove', (ev)=>{
+        cursorLight.style.left = ev.clientX + 'px';
+        cursorLight.style.top = ev.clientY + 'px';
+        cursorLight.style.opacity = 0.95;
+        cursorLight.style.width = ev.shiftKey ? '480px' : '300px';
+        cursorLight.style.height = ev.shiftKey ? '480px' : '300px';
+      });
+    }
+    enableCursorLight();
+
+    /* ================= AUDIO (controls + crossfade) ================= */
+    const audio1 = document.getElementById('bgAudio1');
+    const audio2 = document.getElementById('bgAudio2');
+    const playBtn = document.getElementById('playBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const vol = document.getElementById('vol');
+    const trackName = document.getElementById('trackName');
+    const musicCredit = document.getElementById('musicCredit');
+
+    // Set readable track names (optional - you can change)
+    const trackLabels = {
+      bgAudio1: 'Batalla — Vasija Pura',
+      bgAudio2: 'Batalla — Hollow Knight'
+    };
+
+    audio1.volume = parseFloat(vol.value);
+    audio2.volume = 0;
+
+    let playing1 = false, playing2 = false, userInteracted = false;
+
+    // play/pause for audio1
+    playBtn.addEventListener('click', async ()=>{
+      if(!playing1){
+        try { await audio1.play(); } catch(e){ /* autoplay blocked until interaction */ }
+        playing1 = true; playBtn.textContent = '❚❚'; trackName.textContent = trackLabels.bgAudio1;
+      } else {
+        audio1.pause(); playing1 = false; playBtn.textContent = '▶︎'; trackName.textContent = 'Sin reproducción';
+      }
+    });
+
+    // mute toggle
+    muteBtn.addEventListener('click', ()=>{
+      audio1.muted = audio2.muted = !audio1.muted;
+      muteBtn.textContent = audio1.muted ? '🔇' : '🔉';
+    });
+
+    vol.addEventListener('input', ()=> {
+      audio1.volume = parseFloat(vol.value);
+      // audio2 volume follows during crossfade
+    });
+
+    // ensure at least one user interaction to respect autoplay policies
+    document.addEventListener('click', ()=> { userInteracted = true; if(playing1 && audio1.paused) audio1.play().catch(()=>{}); }, { once:true });
+
+    audio1.addEventListener('error', ()=> {
+      document.querySelector('.audio-controls').style.display = 'none';
+      musicCredit.textContent = 'Audio no disponible.';
+    });
+
+    // Crossfade function (audio1 -> audio2)
+    function crossfadeToAudio2(ms = 2400){
+      if(!audio2) return;
+      // try play audio2 (may be blocked)
+      audio2.play().catch(()=>{});
+      const t0 = performance.now();
+      const initial1 = audio1.volume;
+      const final2 = parseFloat(vol.value);
+      function step(now){
+        let u = Math.min(1, (now - t0) / ms);
+        // smoothstep
+        let k = u * u * (3 - 2 * u);
+        audio1.volume = initial1 * (1 - k);
+        audio2.volume = final2 * k;
+        if(u < 1) requestAnimationFrame(step);
+        else {
+          try{ audio1.pause(); } catch(e){}
+          playing1 = false; playing2 = true;
+          trackName.textContent = trackLabels.bgAudio2;
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    // Observer to trigger crossfade when entering #hollow
+    const hollow = document.getElementById('hollow');
+    if(hollow){
+      const hollowObs = new IntersectionObserver(entries => {
+        for(const ent of entries){
+          if(ent.isIntersecting){
+            // if audio1 is playing -> crossfade; if not, just play audio2
+            if(playing2) return;
+            if(!playing1){
+              audio2.volume = parseFloat(vol.value);
+              audio2.play().catch(()=>{});
+              playing2 = true; trackName.textContent = trackLabels.bgAudio2;
+            } else {
+              crossfadeToAudio2(2200);
+            }
+          }
+        }
+      }, { threshold: 0.55 });
+      hollowObs.observe(hollow);
+    }
+
+    /* ======= Top button ======= */
+    const btnTop = document.getElementById('btnTop');
+    window.addEventListener('scroll', ()=> { btnTop.style.display = (window.scrollY > 360) ? 'flex' : 'none'; });
+    btnTop.addEventListener('click', ()=> window.scrollTo({ top:0, behavior:'smooth' }));
+
+    /* ======= Section hover glow ======= */
+    document.querySelectorAll('main section').forEach(sec=>{
+      sec.addEventListener('mouseenter', ()=> sec.style.boxShadow = '0 18px 70px rgba(0,0,0,0.7)');
+      sec.addEventListener('mouseleave', ()=> sec.style.boxShadow = '0 8px 30px rgba(0,0,0,0.6)');
+    });
+
+    /* ======= Utility: recreate particles on resize/load ======= */
+    window.addEventListener('load', ()=> createParticles());
+    window.addEventListener('resize', ()=> createParticles());
+
+    /* ======= HELP: show instructions in musicCredit if default src not replaced ======= */
+    const s1 = document.getElementById('src1');
+    const s2 = document.getElementById('src2');
+    function checkSources(){
+      if(s1 && s1.src && s1.src.includes('PUT_YOUR_FIRST_MP3_HERE')) {
+        musicCredit.innerHTML = 'Inserta la URL/local del primer mp3 (Vasija) en la línea: <code>PUT_YOUR_FIRST_MP3_HERE.mp3</code>';
+      } else {
+        musicCredit.innerHTML = 'Pista 1 cargada localmente o vía URL.';
+      }
+      if(s2 && s2.src && s2.src.includes('PUT_YOUR_SECOND_MP3_HERE')) {
+        musicCredit.innerHTML += ' &nbsp; Inserta la URL/local del segundo mp3 (Hollow) en: <code>PUT_YOUR_SECOND_MP3_HERE.mp3</code>';
+      }
+    }
+    setTimeout(checkSources, 300);
+  </script>
+</body>
+</html>
